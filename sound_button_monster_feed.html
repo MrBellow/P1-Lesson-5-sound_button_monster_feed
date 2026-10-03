@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sound-Button Monster Feed!</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif']
+                    },
+                    colors: {
+                        monster: {
+                            light: '#a855f7',
+                            DEFAULT: '#9333ea',
+                            dark: '#7e22ce'
+                        },
+                        pastel: {
+                            yellow: '#fffbeb',
+                            green: '#dcfce7',
+                            blue: '#e0f2fe',
+                            pink: '#fce7f3'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #fef08a;
+            background-image: radial-gradient(#fde047 2px, transparent 2px);
+            background-size: 24px 24px;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Custom Animations */
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes chomp-upper {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(22px); }
+        }
+
+        @keyframes chomp-lower {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-22px); }
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-6deg); }
+            75% { transform: rotate(6deg); }
+        }
+
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes celebrate-star {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            80% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        @keyframes sweep-arrow {
+            0% { transform: translateX(-100%); opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0.2; }
+        }
+
+        .anim-chomp-top {
+            animation: chomp-upper 0.25s ease-in-out 3;
+        }
+
+        .anim-chomp-bottom {
+            animation: chomp-lower 0.25s ease-in-out 3;
+        }
+
+        .anim-wiggle {
+            animation: wiggle 0.4s ease-in-out infinite;
+        }
+
+        .anim-bounce {
+            animation: bounce-gentle 1.5s ease-in-out infinite;
+        }
+
+        .anim-star {
+            animation: celebrate-star 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .arrow-sweep {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .arrow-sweep::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+            animation: sweep-arrow 1.5s infinite;
+        }
+
+        /* Sound Button Styling */
+        .sound-btn {
+            box-shadow: 0 6px 0 #15803d, 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            transition: all 0.15s ease;
+        }
+
+        .sound-btn:active, .sound-btn.active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #15803d, 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            background-color: #4ade80 !important;
+        }
+
+        .sound-btn-glow {
+            box-shadow: 0 0 20px #22c55e, 0 6px 0 #15803d;
+        }
+
+        /* Target Mouth Glow on Drag Over */
+        .mouth-hover {
+            filter: drop-shadow(0 0 18px #facc15) brightness(1.1);
+        }
+
+        /* Card Styling & Drag Effect */
+        .choice-card {
+            box-shadow: 0 8px 0 #cbd5e1, 0 12px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            touch-action: none;
+        }
+
+        .choice-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 0 #cbd5e1, 0 16px 25px rgba(0,0,0,0.15);
+        }
+
+        .choice-card.dragging {
+            opacity: 0.85;
+            transform: scale(1.08) rotate(3deg);
+            z-index: 1000;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.25);
+        }
+
+        /* Shake animation for wrong answer */
+        @keyframes wrong-shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-12px) rotate(-4deg); }
+            40% { transform: translateX(12px) rotate(4deg); }
+            60% { transform: translateX(-8px) rotate(-2deg); }
+            80% { transform: translateX(8px) rotate(2deg); }
+        }
+
+        .wrong-shake {
+            animation: wrong-shake 0.5s ease-in-out;
+        }
+
+        /* Confetti canvas */
+        #confetti-canvas {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between min-h-screen p-3 md:p-6 select-none">
+    
+    <!-- Confetti Canvas -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Main Game Container -->
+    <div class="w-full max-w-4xl flex flex-col items-center flex-grow justify-between gap-3">
+        
+        <!-- Header Bar -->
+        <header class="w-full bg-white/90 backdrop-blur-md rounded-3xl p-3 md:p-4 shadow-xl border-4 border-amber-300 flex flex-wrap items-center justify-between gap-2">
+            <!-- App Title -->
+            <div class="flex items-center gap-2">
+                <span class="text-3xl md:text-4xl">👾</span>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-purple-800 tracking-wide uppercase leading-none">
+                        Sound-Button Monster Feed!
+                    </h1>
+                    <p class="text-xs md:text-sm font-bold text-amber-600">Phonics Practice (P1 / Age 5-6)</p>
+                </div>
+            </div>
+
+            <!-- Score & Progress -->
+            <div class="flex items-center gap-4 bg-amber-50 px-4 py-2 rounded-2xl border-2 border-amber-200">
+                <div class="text-center">
+                    <span class="text-xs uppercase font-extrabold text-amber-700 block">Monsters Fed</span>
+                    <span id="score-counter" class="text-2xl font-black text-purple-700">0 / 10</span>
+                </div>
+                <!-- Stars Container -->
+                <div id="star-bar" class="flex gap-1 text-xl md:text-2xl">
+                    <!-- Stars dynamically populated -->
+                </div>
+            </div>
+        </header>
+
+        <!-- Center Stage: Cartoon Monster & Mouth Drop Zone -->
+        <div class="relative w-full max-w-lg flex flex-col items-center justify-center my-1">
+            
+            <!-- Speech Bubble Hint -->
+            <div id="speech-bubble" class="absolute -top-3 z-20 bg-white border-4 border-purple-500 rounded-2xl px-4 py-1 shadow-lg text-purple-900 font-extrabold text-sm md:text-base anim-bounce flex items-center gap-2">
+                <span>🔊 Press buttons, then feed me!</span>
+                <button id="speaker-btn" class="bg-purple-100 hover:bg-purple-200 p-1.5 rounded-full text-purple-700 transition" title="Read target word">
+                    📢
+                </button>
+            </div>
+
+            <!-- Monster SVG Interactive Visual -->
+            <div id="monster-container" class="relative w-64 h-52 md:w-80 md:h-64 flex items-center justify-center transition-transform duration-300">
+                <svg id="monster-svg" viewBox="0 0 300 240" class="w-full h-full filter drop-shadow-xl overflow-visible">
+                    <!-- Monster Ears/Horns -->
+                    <path d="M 60 70 Q 30 20 75 40 Z" fill="#7e22ce" />
+                    <path d="M 240 70 Q 270 20 225 40 Z" fill="#7e22ce" />
+                    <circle cx="40" cy="30" r="12" fill="#facc15" />
+                    <circle cx="260" cy="30" r="12" fill="#facc15" />
+
+                    <!-- Monster Body Base -->
+                    <path d="M 40 120 C 40 40, 260 40, 260 120 C 260 210, 220 230, 150 230 C 80 230, 40 210, 40 120 Z" fill="#9333ea" />
+                    
+                    <!-- Cute Belly Pattern -->
+                    <ellipse cx="150" cy="180" rx="65" ry="35" fill="#a855f7" opacity="0.6" />
+
+                    <!-- Eyes -->
+                    <g id="monster-eyes">
+                        <!-- Left Eye -->
+                        <circle cx="105" cy="85" r="24" fill="white" />
+                        <circle id="pupil-left" cx="105" cy="85" r="11" fill="#1e1b4b" />
+                        <circle cx="101" cy="80" r="4" fill="white" />
+                        
+                        <!-- Right Eye -->
+                        <circle cx="195" cy="85" r="24" fill="white" />
+                        <circle id="pupil-right" cx="195" cy="85" r="11" fill="#1e1b4b" />
+                        <circle cx="191" cy="80" r="4" fill="white" />
+                        
+                        <!-- Rosy Cheeks -->
+                        <circle cx="70" cy="115" r="12" fill="#f43f5e" opacity="0.5" />
+                        <circle cx="230" cy="115" r="12" fill="#f43f5e" opacity="0.5" />
+                    </g>
+
+                    <!-- Monster Mouth (Target Drop Zone) -->
+                    <!-- Upper Mouth / Teeth -->
+                    <g id="mouth-upper-group" class="transition-transform duration-200">
+                        <path d="M 85 130 Q 150 125 215 130 C 215 130 190 128 150 128 C 110 128 85 130 85 130 Z" fill="#581c87" />
+                        <!-- Top Teeth -->
+                        <polygon points="110,130 120,142 130,130" fill="white" />
+                        <polygon points="170,130 180,142 190,130" fill="white" />
+                    </g>
+
+                    <!-- Open Mouth Void (Interactive Target) -->
+                    <rect id="monster-mouth" x="80" y="130" width="140" height="65" rx="30" fill="#3b0764" class="cursor-pointer transition-all duration-200" />
+                    
+                    <!-- Lower Mouth / Tongue -->
+                    <g id="mouth-lower-group" class="transition-transform duration-200 pointer-events-none">
+                        <path d="M 100 175 Q 150 195 200 175 Q 150 185 100 175 Z" fill="#f43f5e" />
+                        <!-- Bottom Teeth -->
+                        <polygon points="140,182 150,170 160,182" fill="white" />
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Center Stage: CVC Word & Sound Buttons -->
+        <div class="w-full bg-white/95 backdrop-blur-sm rounded-3xl p-4 md:p-6 shadow-xl border-4 border-purple-200 flex flex-col items-center gap-4">
+            
+            <!-- Large CVC Target Word Display -->
+            <div id="word-letters-container" class="flex justify-center items-center gap-4 md:gap-8 min-h-[90px]">
+                <!-- Letters injected dynamically -->
+            </div>
+
+            <!-- Sound Buttons Row -->
+            <div id="sound-buttons-container" class="flex justify-center items-center gap-4 md:gap-8">
+                <!-- Sound buttons injected dynamically -->
+            </div>
+
+            <!-- Blending Arrow & Sound Sweep Container -->
+            <div id="blend-arrow-container" class="w-full max-w-xs md:max-w-md flex flex-col items-center mt-1 cursor-pointer group" onclick="playFullBlendedWord()">
+                <div class="w-full bg-purple-100 h-4 rounded-full relative flex items-center p-1 border-2 border-purple-300 overflow-hidden">
+                    <div id="blend-progress" class="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400 h-full rounded-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="flex items-center gap-2 mt-1.5 text-purple-700 font-black text-sm md:text-base group-hover:scale-105 transition-transform">
+                    <span>LEFT-TO-RIGHT BLENDING</span>
+                    <span class="text-xl md:text-2xl group-hover:translate-x-2 transition-transform">➔</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Area: 3 Picture Choice Cards -->
+        <div class="w-full my-2">
+            <p class="text-center font-black text-purple-900 text-sm md:text-base mb-2 uppercase tracking-wide">
+                👇 Drag or Tap the matching picture to feed the monster! 👇
+            </p>
+            <div id="choices-container" class="grid grid-cols-3 gap-3 md:gap-6 w-full max-w-3xl mx-auto">
+                <!-- Cards injected dynamically -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Celebration Modal (Game Completion) -->
+    <div id="victory-modal" class="fixed inset-0 bg-purple-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-10 max-w-md w-full text-center border-8 border-yellow-400 shadow-2xl flex flex-col items-center gap-5 transform animate-bounce-gentle">
+            <div class="text-6xl md:text-7xl">🎉👾🏆</div>
+            <h2 class="text-3xl md:text-4xl font-black text-purple-800 leading-tight">
+                YOU FED THE MONSTER!
+            </h2>
+            <p class="text-lg font-bold text-slate-600">
+                Awesome Phonics Blending! You completed all words!
+            </p>
+
+            <!-- 3 Gold Stars -->
+            <div class="flex justify-center gap-3 text-5xl md:text-6xl py-2">
+                <span class="anim-star" style="animation-delay: 0.1s;">⭐</span>
+                <span class="anim-star" style="animation-delay: 0.3s;">⭐</span>
+                <span class="anim-star" style="animation-delay: 0.5s;">⭐</span>
+            </div>
+
+            <button id="restart-btn" class="w-full py-4 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-black text-2xl rounded-2xl shadow-lg border-b-8 border-green-700 transition duration-150 uppercase tracking-wide">
+                Play Again! 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* Phonics Word Bank Data Structure */
+        const WORD_BANK = [
+            { word: "sat", sounds: ["s", "a", "t"], correctImg: "🪑", choices: ["🪑", "🐱", "🖊️"], labels: ["sat", "cat", "pen"] },
+            { word: "pat", sounds: ["p", "a", "t"], correctImg: "🫳", choices: ["🫳", "🥫", "😴"], labels: ["pat", "pan", "nap"] },
+            { word: "pan", sounds: ["p", "a", "n"], correctImg: "🍳", choices: ["🍳", "📌", "🏃"], labels: ["pan", "pin", "run"] },
+            { word: "pin", sounds: ["p", "i", "n"], correctImg: "📌", choices: ["📌", "🍳", "🪑"], labels: ["pin", "pan", "sat"] },
+            { word: "nap", sounds: ["n", "a", "p"], correctImg: "😴", choices: ["😴", "🫳", "🚰"], labels: ["nap", "pat", "tap"] },
+            { word: "tap", sounds: ["t", "a", "p"], correctImg: "🚰", choices: ["🚰", "🥫", "📌"], labels: ["tap", "tin", "pin"] },
+            { word: "sit", sounds: ["s", "i", "t"], correctImg: "🧘", choices: ["🧘", "😴", "🫳"], labels: ["sit", "nap", "pat"] },
+            { word: "pit", sounds: ["p", "i", "t"], correctImg: "🕳️", choices: ["🕳️", "🚰", "🪑"], labels: ["pit", "tap", "sat"] },
+            { word: "tin", sounds: ["t", "i", "n"], correctImg: "🥫", choices: ["🥫", "🍳", "🕳️"], labels: ["tin", "pan", "pit"] },
+            { word: "sap", sounds: ["s", "a", "p"], correctImg: "🌲", choices: ["🌲", "🍳", "🧘"], labels: ["sap", "pan", "sit"] },
+            { word: "nip", sounds: ["n", "i", "p"], correctImg: "🤏", choices: ["🤏", "😴", "🫳"], labels: ["nip", "nap", "pat"] },
+            { word: "tan", sounds: ["t", "a", "n"], correctImg: "🟤", choices: ["🟤", "📌", "🚰"], labels: ["tan", "pin", "tap"] }
+        ];
+
+        /* Phoneme Sound File Map (Exact audio files provided from xiaozhah/phoneme_audio) */
+        const SOUND_FILES_RAW = {
+            's': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/s_isolation.mp3',
+            'a': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/%C3%A6_isolation.mp3',
+            't': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/t_isolation.mp3',
+            'i': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/%C9%AA_isolation.mp3',
+            'p': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/p_isolation.mp3',
+            'n': 'https://raw.githubusercontent.com/xiaozhah/phoneme_audio/main/audio/n_isolation.mp3'
+        };
+
+        const SOUND_FILES_CDN = {
+            's': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/s_isolation.mp3',
+            'a': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/%C3%A6_isolation.mp3',
+            't': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/t_isolation.mp3',
+            'i': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/%C9%AA_isolation.mp3',
+            'p': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/p_isolation.mp3',
+            'n': 'https://cdn.jsdelivr.net/gh/xiaozhah/phoneme_audio@main/audio/n_isolation.mp3'
+        };
+
+        /* Fallback spoken phoneme pronunciation text */
+        const PHONEME_AUDIO = {
+            's': 'ssss',
+            'a': 'ah',
+            't': 'tuh',
+            'i': 'ih',
+            'p': 'puh',
+            'n': 'nnn'
+        };
+
+        const audioCache = {};
+
+        /* Preload specified phoneme isolation audio files */
+        function preloadPhonemeAudio() {
+            Object.keys(SOUND_FILES_CDN).forEach(letter => {
+                const url = SOUND_FILES_CDN[letter];
+                const audio = new Audio(url);
+                audio.preload = "auto";
+                audioCache[letter] = audio;
+            });
+        }
+
+        /* Play Phoneme Audio using direct isolation sound files */
+        function playPhonemeSound(letter) {
+            const char = letter.toLowerCase();
+            
+            // Try playing preloaded sound clone from cache
+            if (audioCache[char]) {
+                const soundClone = audioCache[char].cloneNode();
+                const promise = soundClone.play();
+                if (promise !== undefined) {
+                    promise.then(() => {
+                        // Played successfully
+                    }).catch(() => {
+                        playFallbackAudioOrTTS(char);
+                    });
+                    return;
+                }
+            }
+            playFallbackAudioOrTTS(char);
+        }
+
+        function playFallbackAudioOrTTS(char) {
+            const rawUrl = SOUND_FILES_RAW[char];
+            if (rawUrl) {
+                const rawAudio = new Audio(rawUrl);
+                rawAudio.play().then(() => {}).catch(() => {
+                    speakPhoneme(char);
+                });
+            } else {
+                speakPhoneme(char);
+            }
+        }
+
+        /* Game State Variables */
+        let currentWordIndex = 0;
+        let gameWords = [];
+        let pressedButtons = new Set();
+        let fedMonstersCount = 0;
+        const TOTAL_WORDS_PER_ROUND = 10;
+        let isProcessingAction = false;
+
+        /* Web Audio API Synthesizer for Fun Sound FX */
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        /* Sound FX Synthesizers */
+        function playChompSound() {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                
+                const now = ctx.currentTime;
+                // Crunch pitch sweep
+                for (let i = 0; i < 3; i++) {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180 - i * 30, now + i * 0.08);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + i * 0.08 + 0.06);
+                    
+                    gain.gain.setValueAtTime(0.3, now + i * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.01, now + i * 0.08 + 0.06);
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.06);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function playSuccessChime() {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + idx * 0.07);
+                    osc.stop(now + idx * 0.07 + 0.25);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function playTryAgainBoing() {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch (e) { console.error(e); }
+        }
+
+        /* Speech Synthesis for Phonics */
+        function speakSound(text, rate = 0.8) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Stop ongoing speech
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = rate;
+            utterance.pitch = 1.1; // Friendly pitch
+            utterance.lang = 'en-US';
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function speakPhoneme(letter) {
+            const phonemeText = PHONEME_AUDIO[letter.toLowerCase()] || letter;
+            speakSound(phonemeText, 0.7);
+        }
+
+        function speakWord(word) {
+            speakSound(word, 0.85);
+        }
+
+        /* Shuffle Array Helper */
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        /* Initialize Game Session */
+        function initGame() {
+            preloadPhonemeAudio();
+            gameWords = shuffleArray(WORD_BANK).slice(0, TOTAL_WORDS_PER_ROUND);
+            currentWordIndex = 0;
+            fedMonstersCount = 0;
+            updateHeader();
+            loadCurrentWord();
+            
+            document.getElementById('victory-modal').classList.add('hidden');
+        }
+
+        /* Update Header (Stars & Score) */
+        function updateHeader() {
+            document.getElementById('score-counter').innerText = `${fedMonstersCount} / ${TOTAL_WORDS_PER_ROUND}`;
+            
+            const starBar = document.getElementById('star-bar');
+            starBar.innerHTML = '';
+            for (let i = 0; i < TOTAL_WORDS_PER_ROUND; i++) {
+                const starSpan = document.createElement('span');
+                if (i < fedMonstersCount) {
+                    starSpan.innerText = '⭐';
+                    starSpan.className = 'inline-block transform scale-110 transition-transform';
+                } else {
+                    starSpan.innerText = '⚪';
+                    starSpan.className = 'opacity-40 text-sm';
+                }
+                starBar.appendChild(starSpan);
+            }
+        }
+
+        /* Load Current Word Display */
+        function loadCurrentWord() {
+            pressedButtons.clear();
+            isProcessingAction = false;
+            updateBlendProgress();
+
+            const currentData = gameWords[currentWordIndex];
+            const lettersContainer = document.getElementById('word-letters-container');
+            const buttonsContainer = document.getElementById('sound-buttons-container');
+            const choicesContainer = document.getElementById('choices-container');
+
+            lettersContainer.innerHTML = '';
+            buttonsContainer.innerHTML = '';
+            choicesContainer.innerHTML = '';
+
+            // Render Letters & Sound Buttons
+            currentData.sounds.forEach((letter, idx) => {
+                // Letter Element
+                const letterBox = document.createElement('div');
+                letterBox.id = `letter-${idx}`;
+                letterBox.className = "w-20 h-24 md:w-24 md:h-28 bg-amber-100 border-4 border-amber-300 rounded-2xl flex items-center justify-center text-5xl md:text-6xl font-black text-purple-900 shadow-md transition-all duration-200";
+                letterBox.innerText = letter;
+                lettersContainer.appendChild(letterBox);
+
+                // Circular Sound Button
+                const btn = document.createElement('button');
+                btn.id = `sound-btn-${idx}`;
+                btn.className = "sound-btn w-16 h-16 md:w-20 md:h-20 bg-green-500 hover:bg-green-400 text-white rounded-full flex items-center justify-center text-3xl font-black transition-all cursor-pointer select-none active:scale-95";
+                btn.setAttribute('aria-label', `Play sound for letter ${letter}`);
+                btn.innerHTML = `<span class="text-white drop-shadow">⚫</span>`;
+                
+                btn.onclick = () => onSoundButtonClick(idx, letter);
+                buttonsContainer.appendChild(btn);
+            });
+
+            // Prepare Choice Cards (1 correct + 2 distractors)
+            const cardOptions = [];
+            for (let i = 0; i < currentData.choices.length; i++) {
+                cardOptions.push({
+                    emoji: currentData.choices[i],
+                    label: currentData.labels[i],
+                    isCorrect: currentData.choices[i] === currentData.correctImg
+                });
+            }
+            
+            // Shuffle choice cards so the correct answer changes position every round
+            const shuffledCardOptions = shuffleArray(cardOptions);
+
+            // Render Cards
+            shuffledCardOptions.forEach((option, idx) => {
+                const card = document.createElement('div');
+                card.className = "choice-card bg-white rounded-2xl p-3 md:p-5 flex flex-col items-center justify-center border-4 border-purple-200 cursor-pointer active:scale-95 select-none";
+                card.dataset.isCorrect = option.isCorrect;
+                card.dataset.label = option.label;
+
+                card.innerHTML = `
+                    <div class="text-5xl md:text-7xl mb-2 pointer-events-none">${option.emoji}</div>
+                    <div class="text-lg md:text-xl font-extrabold text-purple-900 tracking-wide pointer-events-none uppercase">${option.label}</div>
+                `;
+
+                // Tap & Drag interactions setup
+                setupCardInteractions(card, option);
+                choicesContainer.appendChild(card);
+            });
+
+            // Auto read speech bubble introduction
+            setTimeout(() => {
+                speakWord(currentData.word);
+            }, 300);
+        }
+
+        /* Sound Button Click Handler */
+        function onSoundButtonClick(index, letter) {
+            getAudioContext();
+            
+            // Highlight Letter
+            const letterEl = document.getElementById(`letter-${index}`);
+            const btnEl = document.getElementById(`sound-btn-${index}`);
+
+            letterEl.classList.add('bg-green-200', 'border-green-500', 'scale-110', '-translate-y-2');
+            btnEl.classList.add('sound-btn-glow', 'active');
+
+            // Play phoneme audio from repository
+            playPhonemeSound(letter);
+
+            // Register pressed button
+            pressedButtons.add(index);
+            updateBlendProgress();
+
+            setTimeout(() => {
+                letterEl.classList.remove('bg-green-200', 'border-green-500', 'scale-110', '-translate-y-2');
+                btnEl.classList.remove('sound-btn-glow', 'active');
+            }, 500);
+
+            // Check if all buttons tapped -> trigger auto-blend speech
+            const currentData = gameWords[currentWordIndex];
+            if (pressedButtons.size === currentData.sounds.length) {
+                setTimeout(() => {
+                    playFullBlendedWord();
+                }, 600);
+            }
+        }
+
+        /* Blend Bar Visual Progress */
+        function updateBlendProgress() {
+            const currentData = gameWords[currentWordIndex];
+            if (!currentData) return;
+            const percent = (pressedButtons.size / currentData.sounds.length) * 100;
+            const bar = document.getElementById('blend-progress');
+            bar.style.width = `${percent}%`;
+        }
+
+        /* Play Full Blended Word */
+        function playFullBlendedWord() {
+            const currentData = gameWords[currentWordIndex];
+            if (!currentData) return;
+
+            // Highlight all letters sequentially and pronounce each phoneme sound (not letter name)
+            currentData.sounds.forEach((letter, idx) => {
+                setTimeout(() => {
+                    const lEl = document.getElementById(`letter-${idx}`);
+                    const btnEl = document.getElementById(`sound-btn-${idx}`);
+                    if (lEl) {
+                        lEl.classList.add('bg-amber-300', 'scale-105');
+                        if (btnEl) btnEl.classList.add('active');
+                        playPhonemeSound(letter);
+                        setTimeout(() => {
+                            lEl.classList.remove('bg-amber-300', 'scale-105');
+                            if (btnEl) btnEl.classList.remove('active');
+                        }, 350);
+                    }
+                }, idx * 500);
+            });
+
+            // Speak blended word at the end after phoneme sequence completes
+            setTimeout(() => {
+                speakWord(currentData.word);
+            }, currentData.sounds.length * 500 + 250);
+        }
+
+        /* Card Touch Drag & Tap Setup */
+        function setupCardInteractions(card, option) {
+            // Tap to select / feed fallback
+            card.addEventListener('click', (e) => {
+                if (card.dataset.isDragging === "true") return;
+                handleFeedAttempt(option.isCorrect, card);
+            });
+
+            // Touch Dragging Support for iPads/Mobile
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let initialRect = null;
+
+            card.addEventListener('touchstart', (e) => {
+                if (isProcessingAction) return;
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                initialRect = card.getBoundingClientRect();
+                card.dataset.isDragging = "false";
+            }, { passive: true });
+
+            card.addEventListener('touchmove', (e) => {
+                if (isProcessingAction) return;
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - touchStartX;
+                const deltaY = touch.clientY - touchStartY;
+
+                if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                    card.dataset.isDragging = "true";
+                    card.classList.add('dragging');
+                    card.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.1) rotate(4deg)`;
+
+                    // Highlight monster mouth if overlapping
+                    checkMouthHover(touch.clientX, touch.clientY);
+                }
+            }, { passive: true });
+
+            card.addEventListener('touchend', (e) => {
+                if (card.dataset.isDragging === "true") {
+                    const touch = e.changedTouches[0];
+                    const isOverMouth = isCoordinatesOverMouth(touch.clientX, touch.clientY);
+
+                    card.classList.remove('dragging');
+                    card.style.transform = '';
+                    clearMouthHover();
+
+                    if (isOverMouth) {
+                        handleFeedAttempt(option.isCorrect, card);
+                    }
+                    
+                    setTimeout(() => { card.dataset.isDragging = "false"; }, 100);
+                }
+            });
+        }
+
+        /* Check if touch coordinates hover over monster mouth */
+        function isCoordinatesOverMouth(x, y) {
+            const mouth = document.getElementById('monster-mouth');
+            const rect = mouth.getBoundingClientRect();
+            return (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);
+        }
+
+        function checkMouthHover(x, y) {
+            const mouth = document.getElementById('monster-mouth');
+            if (isCoordinatesOverMouth(x, y)) {
+                mouth.classList.add('mouth-hover');
+            } else {
+                mouth.classList.remove('mouth-hover');
+            }
+        }
+
+        function clearMouthHover() {
+            const mouth = document.getElementById('monster-mouth');
+            mouth.classList.remove('mouth-hover');
+        }
+
+        /* Feed Attempt Handler (Correct / Wrong) */
+        function handleFeedAttempt(isCorrect, cardElement) {
+            if (isProcessingAction) return;
+            isProcessingAction = true;
+            getAudioContext();
+
+            if (isCorrect) {
+                // Correct Choice Logic
+                playChompSound();
+                playSuccessChime();
+                triggerMonsterChompAnimation();
+                triggerConfetti();
+
+                // Speech celebration
+                speakSound("Yum yum! Delicious!", 1.0);
+
+                // Card flying animation into mouth
+                cardElement.style.transform = 'scale(0) translateY(-150px)';
+                cardElement.style.opacity = '0';
+
+                fedMonstersCount++;
+                updateHeader();
+
+                setTimeout(() => {
+                    currentWordIndex++;
+                    if (currentWordIndex < TOTAL_WORDS_PER_ROUND) {
+                        loadCurrentWord();
+                    } else {
+                        showVictoryModal();
+                    }
+                }, 1600);
+
+            } else {
+                // Incorrect Choice Logic
+                playTryAgainBoing();
+                speakSound("Oops! Try again!", 0.9);
+
+                // Shake card animation
+                cardElement.classList.add('wrong-shake', 'border-red-400', 'bg-red-50');
+                setTimeout(() => {
+                    cardElement.classList.remove('wrong-shake', 'border-red-400', 'bg-red-50');
+                    isProcessingAction = false;
+                }, 700);
+            }
+        }
+
+        /* Monster Chomping Animation */
+        function triggerMonsterChompAnimation() {
+            const mouthUpper = document.getElementById('mouth-upper-group');
+            const mouthLower = document.getElementById('mouth-lower-group');
+            const monsterSvg = document.getElementById('monster-svg');
+
+            mouthUpper.classList.add('anim-chomp-top');
+            mouthLower.classList.add('anim-chomp-bottom');
+            monsterSvg.classList.add('anim-wiggle');
+
+            setTimeout(() => {
+                mouthUpper.classList.remove('anim-chomp-top');
+                mouthLower.classList.remove('anim-chomp-bottom');
+                monsterSvg.classList.remove('anim-wiggle');
+            }, 1000);
+        }
+
+        /* Confetti Effect on Correct Feed */
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#facc15', '#4ade80', '#f43f5e', '#38bdf8', '#c084fc'];
+
+            for (let i = 0; i < 60; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 3,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.8) * 14,
+                    size: Math.random() * 10 + 6,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * 360,
+                    vRot: (Math.random() - 0.5) * 10
+                });
+            }
+
+            let frame = 0;
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach((p) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4; // Gravity
+                    p.rotation += p.vRot;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+
+                frame++;
+                if (frame < 75) {
+                    requestAnimationFrame(render);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            render();
+        }
+
+        /* Display Victory Screen */
+        function showVictoryModal() {
+            setTimeout(() => {
+                speakSound("Hooray! You fed the monster! Great job!", 0.95);
+                document.getElementById('victory-modal').classList.remove('hidden');
+                triggerConfetti();
+            }, 400);
+        }
+
+        /* Event Listeners Initialization */
+        window.addEventListener('DOMContentLoaded', () => {
+            initGame();
+
+            // Speaker button click handler
+            document.getElementById('speaker-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const currentData = gameWords[currentWordIndex];
+                if (currentData) speakWord(currentData.word);
+            });
+
+            // Restart Game button
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                initGame();
+            });
+
+            // Eye tracking subtle motion towards touch/cursor
+            window.addEventListener('mousemove', (e) => {
+                const p1 = document.getElementById('pupil-left');
+                const p2 = document.getElementById('pupil-right');
+                if (!p1 || !p2) return;
+                
+                const dx = (e.clientX - window.innerWidth / 2) / 50;
+                const dy = (e.clientY - window.innerHeight / 2) / 50;
+                
+                p1.setAttribute('cx', 105 + Math.max(-6, Math.min(6, dx)));
+                p1.setAttribute('cy', 85 + Math.max(-6, Math.min(6, dy)));
+                p2.setAttribute('cx', 195 + Math.max(-6, Math.min(6, dx)));
+                p2.setAttribute('cy', 85 + Math.max(-6, Math.min(6, dy)));
+            });
+        });
+    </script>
+</body>
+</html>
